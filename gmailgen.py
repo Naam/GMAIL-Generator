@@ -19,83 +19,107 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 import argparse
 import sys
+import os
+import random
 
 MAIL_MAX_LEN    =   64
-PROVIDER        =   'gmail.com'
 AT              =   '@'
+PROVIDER        =   'gmail.com'
+ml              =   []
+random.seed(os.urandom(42))
 
 parser = argparse.ArgumentParser(description=
         'G(en)mail generate numerous of valid email that lead directly' +
-        '\ninto your inbox.',
+        'into your inbox.',
         prog='G(en)mail')
-parser.add_argument('-n', '--number',
-        help    =   'Number of generated email, by default the all' +
-                    ' combination will be generated',
-        nargs   =   1,
-        default =   0,
-        metavar =   'nb',
-        type    =   int,
-        dest    =   'number')
 parser.add_argument('-t', '--type',
         help    =   'Disposition preference (0:before|1:mixed|2:after)',
-        nargs   =   1,
-        default =   0,
+        default =   1,
         metavar =   'nb',
         type    =   int,
         choices =   range(0,3),
         dest    =   'type')
 parser.add_argument('-s', '--size',
-        help    =   'max size of the new email, max is 64. Default is the ' +
-                    'length of the localpart + 3',
-        nargs   =   1,
-        default =   0,
+        help    =   'size of the new email, default is max length allowed.',
+        default =   64,
         metavar =   'nb',
         type    =   int,
         choices =   range(0,65),
         dest    =   'size')
 parser.add_argument('-o', '--output',
-        help    =   'Specify output file, default is stdin',
-        nargs   =   1,
+        help    =   'Specify output file, default is stdout',
         default =   'stdout',
         metavar =   'file.ext',
         dest    =   'output')
 parser.add_argument('-f', '--format',
         help    =   'Output format, line by line (0) or CSV (1).' +
                     'Default is CSV',
-        nargs   =   1,
         default =   1,
         metavar =   'nb',
         type    =   int,
         choices =   range(0,2),
         dest    =   'fmt')
 parser.add_argument('email',
-        help    =   'email template, since the script is wrote for GMAIL we' +
-                    'just need the local part of the email (localpart@domain)',
-        nargs   =   1,
-        )
+        help    =   'email template, since the script is wrote for GMAIL we ' +
+                    'just need the local part of the email (localpart@domain)')
 
 args = parser.parse_args()
 
 def main():
-    stdout = sys.stdout if args.output[0] is 'stdout' \
-            else open(args.output[0], 'w')
+    stdout      = sys.stdout if args.output is 'stdout' \
+                    else open(args.output, 'w')
     parsemail()
-    maxdot = dotavlb()
+    getmails(dotavlb())
+    if args.fmt == 1:
+        stdout.write(",".join(ml))
+    else:
+        stdout.writelines("\n".join(ml))
+        if stdout == sys.stdout:
+            stdout.write('\n')
     stdout.close()
 
 def dotavlb():
-    return MAIL_MAX_LEN - len(args.email[0])
+    res = MAIL_MAX_LEN
+    if args.size is 64:
+        res     -= len(args.email)
+    else:
+        res     = min(MAIL_MAX_LEN, args.size - len(args.email))
+    return res
 
-def getmails():
-    return mails()
+def getmails(dotavlb):
+    ml = []
+    for i in range(0, dotavlb):
+        mails("", args.type * 0.5, 0, i)
 
-def mails(current, coef, posmail, size):
-    pass
+def mails(current, coef, posmail, dot):
+    if dot < 1:
+        if posmail < len(args.email) - 1:
+            ml.append(current + args.email[posmail:] + AT + PROVIDER)
+        else:
+            ml.append(current + AT + PROVIDER)
+        return
+    if dot > 0:
+        if posmail == len(args.email) - 1:
+            ml.append(current + args.email[posmail] + '.'*dot + AT + PROVIDER)
+            return
+        if coef <= 0.5:
+            mails(current + '.', coef, posmail, dot - 1)
+        if coef >= 0.5:
+            mails(current + args.email[posmail], coef, posmail + 1, dot)
 
 def parsemail():
-    posat = args.email[0].find('@')
-    if posat is not -1:
-        args.email[0] = args.email[0][:posat]
+    try:
+        posat = args.email.find('@')
+        if posat is not -1:
+            mail            = args.email[:posat]
+            assert len(mail) < MAIL_MAX_LEN
+            args.email   = mail
+        else:
+            assert len(args.email) < MAIL_MAX_LEN
+    except:
+        print ('localpart too long, max size is ' + str(MAIL_MAX_LEN))
+        sys.exit(2)
+    args.email = args.email.replace('.', '')
 
 if __name__ == '__main__':
     main()
