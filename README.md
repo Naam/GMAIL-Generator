@@ -1,4 +1,4 @@
-GMAIL-Generator
+G(en)mail
 ===============
 
 ```
