@@ -1,3 +1,4 @@
+#!/bin/env python3
 """
 G(en)mail generate numerous of valid email that lead directly into
 your inbox.
@@ -20,13 +21,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.
 import argparse
 import sys
 import os
-import random
 
 MAIL_MAX_LEN    =   64
 AT              =   '@'
 PROVIDER        =   'gmail.com'
-ml              =   []
-random.seed(os.urandom(42))
 
 parser = argparse.ArgumentParser(description=
         'G(en)mail generate numerous of valid email that lead directly' +
@@ -69,13 +67,7 @@ def main():
     stdout      = sys.stdout if args.output is 'stdout' \
                     else open(args.output, 'w')
     parsemail()
-    getmails(dotavlb())
-    if args.fmt == 1:
-        stdout.write(",".join(ml))
-    else:
-        stdout.writelines("\n".join(ml))
-        if stdout == sys.stdout:
-            stdout.write('\n')
+    getmails(dotavlb(), stdout)
     stdout.close()
 
 def dotavlb():
@@ -84,28 +76,30 @@ def dotavlb():
         res     -= len(args.email)
     else:
         res     = min(MAIL_MAX_LEN, args.size - len(args.email))
+
+    if res <= 0:
+        print ("Size too low or email too big")
     return res
 
-def getmails(dotavlb):
-    ml = []
+def getmails(dotavlb, stdout):
     for i in range(0, dotavlb):
-        mails("", args.type * 0.5, 0, i)
+        mails(stdout, "", args.type * 0.5, 0, i)
 
-def mails(current, coef, posmail, dot):
+def mails(stdout, current, coef, posmail, dot):
     if dot < 1:
         if posmail < len(args.email) - 1:
-            ml.append(current + args.email[posmail:] + AT + PROVIDER)
+            stdout.write(current + args.email[posmail:] + AT + PROVIDER + '\n')
         else:
-            ml.append(current + AT + PROVIDER)
-        return
-    if dot > 0:
+            stdout.write(current + AT + PROVIDER + '\n')
+    elif dot > 0:
         if posmail == len(args.email) - 1:
-            ml.append(current + args.email[posmail] + '.'*dot + AT + PROVIDER)
+            stdout.write(current + args.email[posmail] + '.'*dot + AT + 
+                    PROVIDER + '\n')
             return
         if coef <= 0.5:
-            mails(current + '.', coef, posmail, dot - 1)
+            mails(stdout, current + '.', coef, posmail, dot - 1)
         if coef >= 0.5:
-            mails(current + args.email[posmail], coef, posmail + 1, dot)
+            mails(stdout, current + args.email[posmail], coef, posmail + 1, dot)
 
 def parsemail():
     try:
